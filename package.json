@@ -1,0 +1,13 @@
+{
+  "name": "sinr-functions",
+  "description": "Cloud Functions do projeto Seu Imóvel na Represa",
+  "engines": {
+    "node": "20"
+  },
+  "main": "index.js",
+  "dependencies": {
+    "firebase-admin": "^12.6.0",
+    "firebase-functions": "^6.0.1"
+  },
+  "private": true
+}
