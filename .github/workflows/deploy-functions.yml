@@ -1,0 +1,52 @@
+name: Deploy Cloud Functions
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'index.js'
+      - 'package.json'
+      - 'firebase.json'
+      - '.firebaserc'
+      - '.github/workflows/deploy-functions.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout do codigo
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Instalar Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Gravar Service Account em arquivo temporario
+        run: echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > $HOME/service-account.json
+
+      - name: Gravar .env pra deploy
+        run: echo "DEPLOY_HOOK_URL=${{ secrets.DEPLOY_HOOK_URL }}" > .env.seuimovelnarepresa
+
+      - name: Deploy das functions
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: /home/runner/service-account.json
+        run: |
+          firebase deploy \
+            --only functions \
+            --project seuimovelnarepresa \
+            --non-interactive \
+            --force
+
+      - name: Limpar credencial
+        if: always()
+        run: rm -f $HOME/service-account.json .env.seuimovelnarepresa
