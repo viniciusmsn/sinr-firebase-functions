@@ -4,6 +4,7 @@
  * triggerSiteRebuild        — onWrite em properties/{id}, dispara rebuild.
  * triggerSiteRebuildBairros — onWrite em bairros/{id}, dispara rebuild.
  * flushPendingRebuilds      — cron a cada 5min, varre pendências do debounce.
+ * backfillWatermark         — httpsCallable, aplica watermark em fotos do Storage.
  *
  * DEPLOY_HOOK_URL vem via .env.<projectId> (carregado automaticamente pelo
  * Firebase Functions v2) ou como env var setada pelo pipeline de deploy
@@ -207,6 +208,13 @@ exports.triggerSiteRebuildBairros = onDocumentWritten(
 // ==========================================================================
 // Scheduler: varre pendências que ficaram bloqueadas pelo debounce
 // ==========================================================================
+// ==========================================================================
+// backfillWatermark — HTTPS callable (admin only)
+// Aplica watermark em fotos armazenadas no Firebase Storage.
+// Iterativo, com cursor, dry-run por padrao.
+// ==========================================================================
+exports.backfillWatermark = require('./backfillWatermark').backfillWatermark;
+
 exports.flushPendingRebuilds = onSchedule(
   {
     schedule: 'every 5 minutes',
