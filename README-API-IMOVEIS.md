@@ -14,47 +14,50 @@ Arquivos:
 
 ---
 
-## ⚠️ Antes de fazer qualquer deploy
+## Estado atual
 
-**O `index.js` desta pasta está desatualizado em relação ao que está no ar.**
-Ele tem só `triggerSiteRebuild`, `flushPendingRebuilds` e `conversas` — faltam
-`triggerSiteRebuildBairros` e `backfillWatermark`, que o briefing diz estarem
-deployadas.
+**No ar desde 06/08/2026** (commit `854d566`). O invoker público já foi liberado
+e o catálogo já se gerou sozinho. Testado end-to-end contra produção: 26
+asserções, incluindo fotos do Drive e do Storage abrindo de fato.
+
+```
+https://us-central1-seuimovelnarepresa.cloudfunctions.net/apiImoveis
+```
+
+**Falta um passo para o parceiro conseguir usar:** criar a chave dele. Enquanto
+`api_keys` estiver vazia, a API responde 401 a tudo — que é o comportamento
+correto, mas significa que ela ainda não serve ninguém.
+
+```bash
+node criarChaveParceiro.js "Imobiliaria X" https://www.imobiliariax.com.br
+```
+
+### ⚠️ Ao mexer nas functions no futuro
 
 O workflow roda `firebase deploy --only functions --force`, e o `--force`
-**deleta do projeto qualquer function que não esteja no fonte**. Subir esta
-cópia como está apagaria as duas do ar.
+**deleta do projeto qualquer function que não esteja no fonte**. Em 04/08/2026 a
+cópia local do `index.js` estava desatualizada e teria apagado
+`triggerSiteRebuildBairros` e `backfillWatermark` do ar.
 
-**Sequência correta:**
+Antes de commitar, confirme quais functions o deploy vai enxergar:
 
-1. Baixar o `index.js` atual do repo `viniciusmsn/sinr-firebase-functions`
-   (ou da interface web do GitHub) e comparar com a cópia local.
-2. Adicionar os 4 arquivos novos.
-3. Adicionar **uma linha** no fim do `index.js`, depois do `admin.initializeApp()`:
+```bash
+node -e "const m=require('./index.js');console.log(Object.keys(m).sort())"
+```
 
-   ```js
-   Object.assign(exports, require('./apiImoveis'));
-   ```
+Devem aparecer 7: `apiImoveis`, `backfillWatermark`, `flushCatalogoImoveis`,
+`flushPendingRebuilds`, `rebuildCatalogoImoveis`, `triggerSiteRebuild`,
+`triggerSiteRebuildBairros`. No log do Actions, qualquer
+`Successful delete operation` é sinal de cancelar.
 
-4. Confirmar que o `firebase deploy` vai criar (não deletar) — o log deve mostrar:
+O workflow só dispara em push que toca `index.js`, `package.json`,
+`firebase.json`, `.firebaserc` ou o próprio workflow — mudança só de README ou
+dos arquivos da API não redeploya. Para forçar, use "Run workflow" na aba Actions.
 
-   ```
-   +  functions[apiImoveis(us-central1)]: Successful create operation.
-   +  functions[rebuildCatalogoImoveis(us-central1)]: Successful create operation.
-   +  functions[flushCatalogoImoveis(us-central1)]: Successful create operation.
-   ```
+### Invoker público (já aplicado)
 
-   Se aparecer qualquer `Successful delete operation`, **cancela** — é o `--force`
-   comendo function que não devia.
-
-5. O workflow só dispara em push que toca `index.js`, `package.json`,
-   `firebase.json`, `.firebaserc` ou o próprio workflow. Como o commit vai
-   mexer no `index.js`, dispara sozinho. Os arquivos novos vão junto no deploy
-   porque o Firebase empacota a pasta inteira.
-
-### Liberar o invoker público
-
-Functions Gen2 sobem privadas (403). Depois do primeiro deploy, na sua máquina:
+Functions Gen2 sobem privadas. O binding abaixo já foi feito para `apiImoveis`;
+fica registrado caso precise refazer:
 
 ```bash
 gcloud run services add-iam-policy-binding apiimoveis --region=us-central1 --member=allUsers --role=roles/run.invoker --project=seuimovelnarepresa
@@ -80,21 +83,26 @@ apiImoveis (HTTP)  →  cache em memória da instância (60 s)
 parceiro
 ```
 
-**Custo de leitura.** Era o problema da decisão 2: 236 imóveis × 1440 chamadas/dia
-= 340 mil reads/dia. Agora:
+**Custo de leitura.** Era o problema da decisão 2. Agora:
 
 | Situação | Reads no Firestore |
 |---|---|
 | Request com cache quente (< 60 s) | **0** |
 | Cache expirado, catálogo inalterado | 1 (só o `meta`) |
-| Catálogo mudou | 1 + 4 chunks |
-| Rebuild do catálogo | ~236, algumas vezes por dia |
+| Catálogo mudou | 1 + 2 chunks |
+| Rebuild do catálogo | ~109, algumas vezes por dia |
 
-O parceiro chamando de minuto em minuto sai de 340 mil para ~1.400 reads/dia.
+O parceiro chamando de minuto em minuto sai de centenas de milhares de reads/dia
+para ~1.400.
 
-**Por que chunks e não um doc só.** 236 imóveis com `media[]` cheio passariam
-perto do teto de 1 MB por documento do Firestore. `CHUNK_SIZE = 60` dá 4 docs de
-~200 KB. O código loga `ERROR` se algum chunk passar de 900 KB.
+> **São 109 imóveis publicados, não 236.** O briefing usava 236, que é o total da
+> coleção `properties`; só 109 têm `publishToSite === true`. Se isso for
+> inesperado, vale conferir no CRM quantos imóveis deveriam estar publicados.
+
+**Por que chunks e não um doc só.** Com `media[]` cheio, um doc único passaria
+perto do teto de 1 MB por documento do Firestore. `CHUNK_SIZE = 60` dá 2 docs
+para os 109 atuais (476 KB no total). O código loga `ERROR` se algum chunk passar
+de 900 KB.
 
 **Latência.** Uma edição no CRM aparece na API em até 30 s (debounce). Se dois
 imóveis forem editados em sequência, o segundo marca o catálogo como `sujo` e o
@@ -182,8 +190,8 @@ Saúde da API e frescor do catálogo. Bom para o parceiro monitorar.
       "atualizadoEm": "2026-07-30T12:00:00.000Z"
     }
   ],
-  "meta": { "page": 1, "limit": 50, "total": 236, "totalPaginas": 5,
-            "catalogoGeradoEm": "2026-08-04T18:00:00.000Z" }
+  "meta": { "page": 1, "limit": 50, "total": 109, "totalPaginas": 3,
+            "catalogoGeradoEm": "2026-08-06T05:31:03.814Z" }
 }
 ```
 
@@ -233,10 +241,13 @@ porta do proprietário. O campo `endereco` não existe na resposta.
 
 `url` (w1600) e `thumb` (w400), prontas para uso. Duas origens:
 
-- **Firebase Storage** (~207 fotos): `downloadUrl` original, já com marca d'água
+- **Firebase Storage** (195 fotos): `downloadUrl` original, já com marca d'água
   do backfill v5.171-187.
-- **Google Drive** (~2.400 fotos): `https://lh3.googleusercontent.com/d/{id}=w1600`,
+- **Google Drive** (1.495 fotos): `https://lh3.googleusercontent.com/d/{id}=w1600`,
   **sem marca d'água**.
+
+(Números do catálogo em 06/08/2026: 1.690 fotos nos 109 imóveis publicados,
+nenhum imóvel sem foto.)
 
 Validado em 04/08/2026, sem nenhuma sessão Google ativa: `lh3` responde
 `200 image/jpeg` para os três `driveFileId` testados. É o mesmo caminho que o
