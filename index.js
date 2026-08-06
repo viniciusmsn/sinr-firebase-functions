@@ -253,3 +253,12 @@ exports.flushPendingRebuilds = onSchedule(
     }
   }
 );
+
+// ==========================================================================
+// API publica de imoveis (/v1) — somente leitura, para parceiros externos.
+// Adiciona: apiImoveis (HTTP), rebuildCatalogoImoveis (trigger em
+// properties/{id}) e flushCatalogoImoveis (cron).
+// Contrato de dados e runbook em README-API-IMOVEIS.md.
+// Precisa vir depois do admin.initializeApp() la em cima.
+// ==========================================================================
+Object.assign(exports, require('./apiImoveis'));
