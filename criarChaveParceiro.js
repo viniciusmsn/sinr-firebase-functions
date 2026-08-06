@@ -1,11 +1,13 @@
 /**
  * Gera uma chave de API para um parceiro e grava o HASH em api_keys/.
  *
- * Roda na SUA maquina (o sandbox do Claude nao alcanca o GCP), com o
- * service account JSON que voce ja tem:
+ * Roda na SUA maquina, de dentro desta pasta:
  *
- *   set GOOGLE_APPLICATION_CREDENTIALS=C:\...\seuimovelnarepresa-firebase-adminsdk-....json
  *   node criarChaveParceiro.js "Imobiliaria X" https://www.imobiliariax.com.br
+ *
+ * A credencial e localizada sozinha: o script procura o JSON do adminsdk nesta
+ * pasta e na pasta acima. Se voce tiver GOOGLE_APPLICATION_CREDENTIALS setado,
+ * ele respeita essa variavel.
  *
  * A chave em texto aparece UMA UNICA VEZ no terminal. O Firestore guarda so o
  * sha256 — se perder, nao da pra recuperar: gera outra e desativa a antiga.
@@ -17,8 +19,44 @@
 
 const admin = require('firebase-admin');
 const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
 
-admin.initializeApp({ projectId: 'seuimovelnarepresa' });
+/** Procura o JSON do service account nesta pasta e na de cima. */
+function acharCredencial() {
+  for (const dir of [__dirname, path.join(__dirname, '..')]) {
+    let arquivos;
+    try { arquivos = fs.readdirSync(dir); } catch (_) { continue; }
+    const achado = arquivos.find((f) => /firebase-adminsdk.*\.json$/i.test(f));
+    if (achado) return path.join(dir, achado);
+  }
+  return null;
+}
+
+try {
+  if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+    admin.initializeApp({ projectId: 'seuimovelnarepresa' });
+  } else {
+    const cred = acharCredencial();
+    if (!cred) {
+      console.error('\nNao achei o JSON do service account.');
+      console.error('Ele deve estar nesta pasta ou na de cima, com nome tipo');
+      console.error('  seuimovelnarepresa-firebase-adminsdk-<algo>.json');
+      console.error('Baixe um novo em: Firebase Console > Configuracoes do projeto >');
+      console.error('Contas de servico > Gerar nova chave privada.\n');
+      process.exit(1);
+    }
+    admin.initializeApp({
+      projectId: 'seuimovelnarepresa',
+      credential: admin.credential.cert(require(cred)),
+    });
+    console.log('credencial: ' + path.basename(cred));
+  }
+} catch (err) {
+  console.error('Falha ao inicializar o Firebase: ' + err.message);
+  process.exit(1);
+}
+
 const db = admin.firestore();
 
 function sha256(s) {
