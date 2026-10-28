@@ -262,3 +262,17 @@ exports.flushPendingRebuilds = onSchedule(
 // Precisa vir depois do admin.initializeApp() la em cima.
 // ==========================================================================
 Object.assign(exports, require('./apiImoveis'));
+
+// ==========================================================================
+// propostaPublica — ponte servidor dos fluxos ?aceite / ?compra / ?dossie.
+// O token vira credencial validada no servidor, para que a regra de
+// proposals/ possa deixar de aceitar login anonimo. Ver propostaPublica.js.
+// (publicada da maquina em 28/08/2026; entrou no repositorio em 28/10/2026)
+// ==========================================================================
+Object.assign(exports, require('./propostaPublica'));
+
+// ==========================================================================
+// registrarMudanca — feed _mudancas do CRM (Fase 2 do caminho B): avisa o
+// Worker do que mudou fora dele. Ver registrarMudanca.js.
+// ==========================================================================
+Object.assign(exports, require('./registrarMudanca'));
