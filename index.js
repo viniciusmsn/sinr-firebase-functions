@@ -276,3 +276,10 @@ Object.assign(exports, require('./propostaPublica'));
 // Worker do que mudou fora dele. Ver registrarMudanca.js.
 // ==========================================================================
 Object.assign(exports, require('./registrarMudanca'));
+
+// ==========================================================================
+// feedPortais — XML no padrao VRSync que o Canal Pro le para anunciar no
+// ZAP, VivaReal e OLX. So HTTP, sem trigger. A URL leva um token secreto.
+// Regras, configuracao e runbook em README-FEED-PORTAIS.md.
+// ==========================================================================
+Object.assign(exports, require('./feedPortais'));

@@ -10,7 +10,10 @@
         "firebase-debug.*.log",
         "*.local",
         "testeApiImoveis.js",
-        "criarChaveParceiro.js"
+        "criarChaveParceiro.js",
+        "testeFeedPortais.js",
+        "testeFeedPortaisHttp.js",
+        "feedPortaisAdmin.js"
       ]
     }
   ]
