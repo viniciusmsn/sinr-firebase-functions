@@ -2,7 +2,7 @@
   "name": "sinr-functions",
   "description": "Cloud Functions do projeto Seu Imóvel na Represa",
   "engines": {
-    "node": "20"
+    "node": "22"
   },
   "main": "index.js",
   "dependencies": {
