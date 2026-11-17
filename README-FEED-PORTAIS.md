@@ -158,9 +158,23 @@ ainda não passa nas regras do portal, com o motivo. `marcar --aptos` lista todo
 os que passam e ainda não têm marca; só grava com `--sim`. `diagnostico --lista`
 mostra os códigos dos aptos à espera.
 
-Os campos `publishToPortais`, `portaisDestaque` e `cep` ainda **não têm tela no
-CRM** — por enquanto, a marcação é por este comando. As gravações de imóvel do
-CRM usam `merge: true`, então editar o imóvel lá não apaga a marca.
+### No CRM (desde a v5.323, 17/11/2026)
+
+O formulário do imóvel tem o campo **CEP** (em "Endereço e localização") e a
+caixa **"Anunciar nos portais"** (em "Características"), que gravam `cep` e
+`publishToPortais`. A ficha do imóvel marcado mostra o selo "📣 Portais" e, se
+ele ainda não cumpre as regras, a lista do que falta.
+
+- O captador não vê a caixa, e o Worker recusa a alteração se ele tentar
+  (`publishToPortais` entrou nos campos travados, junto de `publishToSite`).
+- O parceiro não recebe o `cep` do imóvel — vai junto com o endereço.
+- O aviso de pendências do app (`_pendenciasPortais`, no `index.html`) repete as
+  regras de `feedPortaisCore.js`. **Regra que mudar aqui tem de mudar lá**; o
+  `testes-logica.js` compara os dois em 23 casos e falha se divergirem.
+- O app não confere o CEP: sem `cep` no imóvel vale a tabela por bairro, que só
+  o servidor conhece. `feedPortaisAdmin.js marcados` e o `/relatorio` dizem a verdade.
+
+`portaisDestaque` (destaque por imóvel) continua sem tela.
 
 **Limite contratado.** O plano do Canal Pro tem uma grade de anúncios; passando
 dela, o portal inativa anúncios por conta própria. Use `--limite` com o número
